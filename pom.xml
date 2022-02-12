@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.cdprete</groupId>
+    <artifactId>demo</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>github_spring_boot_issue_29756</name>
+    <description>github_spring_boot_issue_29756</description>
+    <properties>
+        <java.version>17</java.version>
+        <maven.compiler.source>${java.version}</maven.compiler.source>
+        <maven.compiler.target>${java.version}</maven.compiler.target>
+        <maven.compiler.release>${java.version}</maven.compiler.release>
+        <maven.compiler.parameters>true</maven.compiler.parameters>
+
+        <docker.credentials.username />
+        <docker.credentials.password />
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>2.6.3</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.gmavenplus</groupId>
+                <artifactId>gmavenplus-plugin</artifactId>
+                <version>1.13.1</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.codehaus.groovy</groupId>
+                        <artifactId>groovy-all</artifactId>
+                        <version>3.0.9</version>
+                        <type>pom</type>
+                    </dependency>
+                </dependencies>
+                <executions>
+                    <execution>
+                        <id>check-if-image-must-be-published</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>execute</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <scripts>
+                        <script><![CDATA[
+                                def dockerCredentialsUsernamePropertyName = 'docker.credentials.username'
+                                def dockerCredentialsPasswordPropertyName = 'docker.credentials.password'
+                                def dockerCredentialsUsername = checkPropertyValue(dockerCredentialsUsernamePropertyName)
+                                def dockerCredentialsPassword = checkPropertyValue(dockerCredentialsPasswordPropertyName)
+                                if(!dockerCredentialsUsername || !dockerCredentialsPassword) {
+                                    project.properties['spring-boot.build-image.publish'] = false
+                                }
+
+                                String checkPropertyValue(String name) {
+                                    def value = getPropertyValue(name)
+                                    if(!value)  {
+                                        log.warn "The property '$name' is not set or it's blank, therefore no image will be pushed."
+                                    }
+
+                                    return value
+                                }
+
+                                String getPropertyValue(String name) {
+                                    // property was defined from command line e.g.: -DpropertyName=value
+                                    def value = session.userProperties[name]?.trim()
+                                    if (!value) {
+                                        value = project.properties[name]?.trim()
+                                    }
+                                    return value
+                                }
+                            ]]></script>
+                    </scripts>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>2.6.3</version>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>repackage</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>build-image</id>
+                        <goals>
+                            <goal>build-image</goal>
+                        </goals>
+                        <configuration>
+                            <docker>
+                                <publishRegistry>
+                                    <username>${docker.credentials.username}</username>
+                                    <password>${docker.credentials.password}</password>
+                                </publishRegistry>
+                            </docker>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
